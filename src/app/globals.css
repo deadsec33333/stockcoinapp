@@ -323,3 +323,7 @@ body { background: transparent; }
 .navigation .nav-actions .icon-button { width: calc(34px - 4px * var(--p)); height: calc(34px - 4px * var(--p)); }
 @media (max-width: 1100px) { .navigation { --w0: calc(100% - 56px); } }
 @media (max-width: 760px) { .navigation { --w0: calc(100% - 40px); --w1: calc(100% - 20px); } }
+
+
+/* ===== No rainbow line under the nav ===== */
+.navigation::after { display: none; }
