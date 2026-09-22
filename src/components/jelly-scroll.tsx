@@ -8,12 +8,20 @@ import { useEffect } from 'react';
  * Pure transform/position offsets driven by one requestAnimationFrame loop.
  */
 const SELECTORS = [
+  // home
   '.hero-eyebrow', '.hero-title .headline-line', '.hero-subtitle', '.hero-actions',
   '.hero-coin', '.label-left', '.label-right', '.post-composer',
   '.stat', '.section-heading h2', '.section-heading .eyebrow', '.section-heading .text-link', '.feed-meta',
   '.launch-card', '.empty-state',
   '.center-heading .eyebrow', '.center-heading h2', '.center-heading p', '.step', '.center-link',
   '.closing .eyebrow', '.closing h2', '.closing p', '.closing .button', '.pair-visual > span',
+  // other pages
+  '.page-heading .eyebrow', '.page-heading h1', '.page-heading p', '.back-link', '.filters', '.pagination',
+  '.pair-card', '.notice', '.chart-panel', '.data-caption',
+  '.docs-nav', '.docs-content h2', '.docs-content section > p', '.docs-content ul', '.docs-content .post-composer',
+  '.coin-detail > .coin-image', '.coin-info .eyebrow', '.coin-info h1', '.coin-ticker', '.coin-info dl > div', '.mint-box', '.coin-links',
+  // footer
+  '.footer-top', '.footer-bottom',
 ];
 // the floating hero stickers combine their float with the jelly offset through a CSS variable (--jy)
 const USE_VAR = new Set(['hero-coin', 'label-left', 'label-right']);
@@ -25,7 +33,7 @@ export function JellyScroll() {
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const mobile = window.matchMedia('(max-width: 760px)').matches;
-    const root = document.getElementById('main') ?? document.body;
+    const root = document.body; // whole site (nav excluded by the selectors)
     let items: Item[] = [];
     const byEl = new Map<HTMLElement, Item>();
     let raf = 0; let last = window.scrollY; let lastT = performance.now();
@@ -48,8 +56,8 @@ export function JellyScroll() {
         const item: Item = {
           el, y: 0, v: 0,
           k: 150 + r1 * 130,            // spring stiffness: each block settles at its own pace
-          c: 11 + r2 * 7,              // damping: low enough for a small overshoot
-          lag: (mobile ? .35 : .55) + r3 * .45, // how much it trails behind the scroll
+          c: 7 + r2 * 5,               // damping: low, so it overshoots and bounces back
+          lag: (mobile ? .45 : .65) + r3 * .5, // how much it trails behind the scroll
           mode, visible: true,
         };
         items.push(item); byEl.set(el, item);
@@ -70,11 +78,11 @@ export function JellyScroll() {
       raf = 0;
       const dt = Math.min(1 / 30, (t - lastT) / 1000); lastT = t;
       const sy = window.scrollY; const dy = sy - last; last = sy;
-      const max = mobile ? 18 : 34;
+      const max = mobile ? 24 : 44;
       let moving = false;
       for (const i of items) {
         if (!i.visible) { if (i.y) reset(i); continue; }
-        i.y += dy * i.lag * .45;                       // page moved: this block trails behind
+        i.y += dy * i.lag * .55;                       // page moved: this block trails behind
         i.y = Math.max(-max, Math.min(max, i.y));
         const a = -i.k * i.y - i.c * i.v;              // spring pulls it back into place
         i.v += a * dt; i.y += i.v * dt;
