@@ -254,60 +254,23 @@ body { background: transparent; }
 .closing { background: color-mix(in srgb, var(--accent-soft) 75%, transparent); }
 .stats-grid { background: color-mix(in srgb, var(--bg) 70%, transparent); }
 
-/* ===== Floating pieces ===== */
-:where(section, .hero-art, .page-heading):has(> .float-field) {
-  position: relative;
-  isolation: isolate;
+/* ===== Smooth idle float for hero coin + cards (uses `translate`, so hover tilt keeps working) ===== */
+@keyframes float-soft {
+  0%   { translate: 0 0; }
+  25%  { translate: 2px -6px; }
+  50%  { translate: 0 -11px; }
+  75%  { translate: -2px -5px; }
+  100% { translate: 0 0; }
 }
-.float-field {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  overflow: hidden;
-  pointer-events: none;
-  contain: layout style;
+.hero-coin.holo, .floating-label.holo {
+  animation: float-soft 9s cubic-bezier(.37, 0, .63, 1) infinite, holo-drift 20s linear infinite;
+  will-change: translate, transform;
 }
-.floater {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
+.floating-label.holo.label-left  { animation-duration: 7.5s, 20s; animation-delay: -2.5s, 0s; }
+.floating-label.holo.label-right { animation-duration: 8.5s, 20s; animation-delay: -5s, 0s; }
+.hero-coin.holo { animation-duration: 10s, 20s; }
+@media (max-width: 760px) {
+  @keyframes float-soft-mobile { 0%, 100% { translate: 0 0; } 50% { translate: 0 -6px; } }
+  .hero-coin.holo, .floating-label.holo { animation-name: float-soft-mobile, holo-drift; }
 }
-.floater-enter, .floater-parallax, .floater-bob { width: 100%; height: 100%; }
-.float-field .floating-piece {
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  pointer-events: auto;
-}
-.float-field .floating-piece-coin { border-radius: 50%; }
-.float-field .floating-piece-tile { border-radius: 9px; }
-.float-field .floating-piece-badge { border-radius: 999px; }
-.floating-piece-print {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 85%;
-  padding: 1px 3px;
-  border-radius: 3px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 8px;
-  font-weight: 600;
-  line-height: 1.2;
-  letter-spacing: -.02em;
-  white-space: nowrap;
-}
-.floating-piece-tile .floating-piece-print { font-size: 13px; }
-.floating-piece-coin .floating-piece-print { width: 64%; height: 64%; padding: 0; border-radius: 50%; }
-.floating-piece-coin .brand-mark { transform: rotate(24deg) scale(.5); flex-shrink: 0; }
-@media (max-width: 759px) {
-  .float-field > .floater:nth-child(n + 3) { display: none; }
-  .floating-piece-print { font-size: 6px; padding: 1px 2px; }
-  .floating-piece-tile .floating-piece-print { font-size: 10px; }
-  .floating-piece-coin .brand-mark { transform: rotate(24deg) scale(.4); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .float-field .floater-enter, .float-field .floater-parallax, .float-field .floater-bob { transform: none !important; animation: none !important; transition: none !important; }
-}
+@media (prefers-reduced-motion: reduce) { .hero-coin.holo, .floating-label.holo { animation: none; } }
