@@ -25,7 +25,6 @@ export function HoloSurface({ children, className = '', variant = 'foil', as = '
   // How strongly the rainbow shows: 0 at rest (silver), up to 1 while the sticker is being "tilted".
   const power = useSpring(0, { stiffness: 120, damping: 22 });
   const pw = useMotionTemplate`${power}`;
-  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const query = window.matchMedia('(hover: hover) and (pointer: fine)');
@@ -41,25 +40,6 @@ export function HoloSurface({ children, className = '', variant = 'foil', as = '
       bounds.current = null;
     }
   }, [reduced, finePointer, tiltX, tiltY, sheenX, sheenY]);
-
-  // Scrolling tilts every sticker a little, like moving it in your hand.
-  useEffect(() => {
-    if (reduced) return;
-    let last = window.scrollY;
-    const onScroll = () => {
-      const now = window.scrollY;
-      const dy = now - last; last = now;
-      if (bounds.current) return; // pointer is on it, pointer wins
-      sheenX.set(50 + 42 * Math.sin(now / 170));
-      sheenY.set(50 + 42 * Math.cos(now / 240));
-      tiltX.set(Math.max(-8, Math.min(8, -dy * 0.35)));
-      power.set(Math.min(1, 0.45 + Math.abs(dy) / 25));
-      if (scrollTimer.current) clearTimeout(scrollTimer.current);
-      scrollTimer.current = setTimeout(() => { if (!bounds.current) { power.set(0); tiltX.set(0); } }, 220);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => { window.removeEventListener('scroll', onScroll); if (scrollTimer.current) clearTimeout(scrollTimer.current); };
-  }, [reduced, sheenX, sheenY, tiltX, power]);
 
   const enabled = finePointer && !reduced;
   function reset() {
