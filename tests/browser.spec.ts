@@ -8,10 +8,12 @@ test('all routes render and do not overflow', async ({ page }) => {
   }
   expect(errors).toEqual([]);
 });
-test('theme persists and navigation works', async ({ page, isMobile }) => {
-  await page.goto('/'); await page.getByRole('button', { name: 'Use dark theme' }).click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark'); await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+test('white-only theme ignores saved dark mode and navigation works', async ({ page, isMobile }) => {
+  await page.addInitScript(() => localStorage.setItem('stockcoin-theme', 'dark'));
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(page.getByRole('button', { name: /Use (dark|light) theme/ })).toHaveCount(0);
   if (isMobile) await page.getByRole('button', { name: 'Open menu' }).click();
   await page.getByRole('navigation', { name: isMobile ? 'Mobile navigation' : 'Main navigation', exact: true }).getByRole('link', { name: 'Explore', exact: true }).click();
   await expect(page).toHaveURL(/\/explore$/);
