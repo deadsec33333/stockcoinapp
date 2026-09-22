@@ -278,62 +278,48 @@ body { background: transparent; }
 /* ===== No rainbow outline on holo icons: plain silver edge ===== */
 .holo::after { background: linear-gradient(135deg, rgba(255,255,255,.9), rgba(167,173,184,.8) 50%, rgba(255,255,255,.9)); padding: 1px; opacity: 1; }
 
-/* ===== Nav: dynamic island =====
-   top of page: full solid bar (as before)
-   scrolled + scrolling up / hover: wide frosted pill
-   scrolling down: small black pill (like the iPhone dynamic island) */
+/* ===== Nav: full bar at the top, morphs into a floating pill as you scroll =====
+   --p goes 0 -> 1 with scroll (set in navigation.tsx every animation frame) */
 .navigation {
-  background: var(--bg);
-  transition: background-color .45s cubic-bezier(.22,1,.36,1), border-color .45s;
+  --p: 0;
+  --w0: min(1320px, calc(100% - 80px));
+  --w1: min(1080px, calc(100% - 32px));
+  background: transparent;
+  border-bottom-color: transparent;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
 }
-.navigation.is-scrolled { background: transparent; border-bottom-color: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; pointer-events: none; }
-.navigation::after { transition: opacity .4s; }
-.navigation.is-scrolled::after { opacity: 0; }
+.navigation::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--bg); border-bottom: 1px solid var(--line); opacity: calc(1 - var(--p)); pointer-events: none; }
+.navigation::after { opacity: calc(1 - var(--p)); }
+.navigation.is-scrolled { pointer-events: none; }
+.navigation .nav-inner, .navigation .mobile-navigation { pointer-events: auto; }
 .navigation .nav-inner {
-  pointer-events: auto;
-  transition:
-    width .7s cubic-bezier(.34,1.36,.64,1),
-    height .6s cubic-bezier(.34,1.36,.64,1),
-    margin .6s cubic-bezier(.34,1.36,.64,1),
-    padding .6s cubic-bezier(.34,1.36,.64,1),
-    border-radius .6s cubic-bezier(.22,1,.36,1),
-    background-color .45s ease, box-shadow .45s ease, border-color .45s ease;
-  border: 1px solid transparent;
-  border-radius: 0;
+  position: relative;
+  isolation: isolate;
+  width: calc(var(--w0) + (var(--w1) - var(--w0)) * var(--p));
+  height: calc(56px - 10px * var(--p));
+  margin-top: calc(5px * var(--p));
+  padding: 0 calc(7px * var(--p)) 0 calc(20px * var(--p));
+  border-radius: calc(26px * var(--p));
+  -webkit-backdrop-filter: blur(calc(20px * var(--p))) saturate(calc(100% + 80% * var(--p)));
+  backdrop-filter: blur(calc(20px * var(--p))) saturate(calc(100% + 80% * var(--p)));
+  box-shadow: 0 10px 30px -10px rgba(11,12,16, calc(.25 * var(--p)));
+  will-change: width, height;
 }
-.navigation.is-scrolled .nav-inner {
-  width: min(1080px, calc(100% - 32px));
-  height: 46px;
-  margin-top: 5px;
-  padding: 0 8px 0 20px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg) 60%, transparent);
-  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
-  border-color: var(--line);
-  box-shadow: 0 10px 30px -10px rgba(11,12,16,.25);
+/* pill surface + hairline border fade in with scroll */
+.navigation .nav-inner::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: var(--bg); border: 1px solid var(--line);
+  opacity: calc(.6 * var(--p));
+  pointer-events: none;
 }
-.navigation.is-scrolled.is-compact .nav-inner {
-  width: 190px;
-  height: 38px;
-  margin-top: 9px;
-  padding: 0 18px;
-  justify-content: center;
-  background: #050507;
-  border-color: rgba(255,255,255,.08);
-  box-shadow: 0 12px 30px -12px rgba(0,0,0,.55);
-  cursor: pointer;
+/* smaller, tidier buttons inside the pill */
+.navigation .nav-actions { gap: calc(14px - 4px * var(--p)); }
+.navigation .nav-actions .button {
+  font-size: 12px;
+  gap: 10px;
+  padding: calc(11px - 3px * var(--p)) calc(18px - 4px * var(--p));
+  border-radius: calc(9px + 11px * var(--p));
 }
-/* things that hide when the island is small */
-.navigation .desktop-nav, .navigation .nav-actions, .navigation .beta, .navigation .mobile-menu {
-  transition: opacity .3s ease .12s, transform .45s cubic-bezier(.34,1.36,.64,1) .08s;
-}
-.navigation.is-compact .desktop-nav, .navigation.is-compact .nav-actions, .navigation.is-compact .beta, .navigation.is-compact .mobile-menu {
-  opacity: 0; transform: scale(.85); pointer-events: none; transition-delay: 0s;
-  position: absolute; visibility: hidden;
-}
-.navigation .brand { transition: color .35s ease, font-size .5s cubic-bezier(.34,1.36,.64,1); }
-.navigation.is-compact .brand { color: #F5F6F8; font-size: 16px; }
-@media (prefers-reduced-motion: reduce) {
-  .navigation .nav-inner, .navigation .desktop-nav, .navigation .nav-actions, .navigation .brand { transition: none; }
-}
-.navigation.is-scrolled .mobile-navigation { pointer-events: auto; }
+.navigation .nav-actions .icon-button { width: calc(34px - 4px * var(--p)); height: calc(34px - 4px * var(--p)); }
+@media (max-width: 1100px) { .navigation { --w0: calc(100% - 56px); } }
+@media (max-width: 760px) { .navigation { --w0: calc(100% - 40px); --w1: calc(100% - 20px); } }
