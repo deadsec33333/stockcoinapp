@@ -1,0 +1,25 @@
+{
+  "name": "stockcoin-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bot": "tsx src/worker.ts",
+    "fees:claim": "tsx src/fees.ts claim",
+    "fees:plan": "tsx src/fees.ts plan",
+    "fees:pay": "tsx src/fees.ts pay",
+    "test": "tsx test/parse.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
