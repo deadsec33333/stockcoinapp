@@ -8,9 +8,10 @@ import { getSupabase } from '@/lib/supabase';
 import { date } from '@/lib/format';
 import type { Launch, LaunchPage, Pair, Result } from '@/lib/types';
 import { CoinImage, EmptyState } from './ui';
+import { HoloSurface } from './holo';
 export function LaunchCard({ coin, index }: { coin: Launch; index: number }) {
   const reduced = useReducedMotion();
-  return <motion.article className="launch-card" layout={!reduced} initial={reduced ? false : { opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: Math.min(index, 11) * .06 }}><Link className="card-main" href={`/coin/${encodeURIComponent(coin.mint)}`}><div className="card-art"><CoinImage url={coin.image_url} ticker={coin.ticker} /><span className="pair-badge">{coin.xstock_symbol}</span><span className="card-arrow"><ArrowUpRight size={18} /></span></div><div className="card-title"><h3>{coin.coin_name}</h3><span>${coin.ticker}</span></div></Link><div className="card-meta"><a href={`https://x.com/${encodeURIComponent(coin.x_handle)}`} target="_blank" rel="noopener noreferrer">@{coin.x_handle}</a><time dateTime={coin.live_at}>{date(coin.live_at)}</time></div></motion.article>;
+  return <motion.article className="launch-card-motion" layout={!reduced} initial={reduced ? false : { opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45, delay: Math.min(index, 11) * .06 }}><HoloSurface className="launch-card" variant="border"><Link className="card-main" href={`/coin/${encodeURIComponent(coin.mint)}`}><div className="card-art"><CoinImage url={coin.image_url} ticker={coin.ticker} /><span className="pair-badge">{coin.xstock_symbol}</span><span className="card-arrow"><ArrowUpRight size={18} /></span></div><div className="card-title"><h3>{coin.coin_name}</h3><span>${coin.ticker}</span></div></Link><div className="card-meta"><a href={`https://x.com/${encodeURIComponent(coin.x_handle)}`} target="_blank" rel="noopener noreferrer">@{coin.x_handle}</a><time dateTime={coin.live_at}>{date(coin.live_at)}</time></div></HoloSurface></motion.article>;
 }
 export function LaunchFeed({ result, pairs = [], explore = false, page = 1 }: { result: Result<LaunchPage>; pairs?: Pair[]; explore?: boolean; page?: number }) {
   const router = useRouter(); const params = useSearchParams(); const [pending, startTransition] = useTransition();
