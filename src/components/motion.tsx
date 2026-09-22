@@ -14,7 +14,12 @@ export function Reveal({ children, className = '', delay = 0 }: { children: Reac
 }
 export function Headline() {
   const reduced = useReducedMotion();
-  return <h1 className="hero-title" aria-label="A little market. A lot of possibility.">{['A little market.', 'A lot of possibility.'].map((line, i) => <span className={i ? 'accent headline-line' : 'headline-line'} aria-hidden="true" key={line}>{line.split(' ').map((word, j) => <motion.span key={word} style={{ display: 'inline-block' }} initial={reduced ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: (i * 3 + j) * .06, ease: [.22, 1, .36, 1] }}>{word}&nbsp;</motion.span>)}</span>)}</h1>;
+  // Line 1 reveals word by word. Line 2 has the holo gradient text (background-clip: text), which
+  // can't be split into separately animated words without flickering, so it reveals as one smooth wipe.
+  return <h1 className="hero-title" aria-label="A little market. A lot of possibility.">
+    <span className="headline-line" aria-hidden="true">{'A little market.'.split(' ').map((word, j) => <motion.span key={word} style={{ display: 'inline-block' }} initial={reduced ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .6, delay: j * .06, ease: [.22, 1, .36, 1] }}>{word}&nbsp;</motion.span>)}</span>
+    <motion.span className="accent headline-line" aria-hidden="true" initial={reduced ? false : { opacity: 0, y: 16, clipPath: 'inset(-10% 100% -20% 0)' }} animate={{ opacity: 1, y: 0, clipPath: 'inset(-10% 0% -20% 0)' }} transition={{ duration: .9, delay: .2, ease: [.22, 1, .36, 1] }}>A lot of possibility.</motion.span>
+  </h1>;
 }
 export function Parallax({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null); const reduced = useReducedMotion();
