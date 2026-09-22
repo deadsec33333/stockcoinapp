@@ -71,7 +71,7 @@ export function DotBackground() {
     let scroll = window.scrollY, shift = 0, shiftTarget = 0, idle = 0;
     // reusable buffers
     let cols = 0, rows = 0;
-    let best = new Float32Array(0), toneBuf = new Float32Array(0);
+    let best = new Float32Array(0), toneBuf = new Float32Array(0); let markMask = new Uint8Array(0);
     const buckets = new Map<number, number[]>();
     const styleCache = new Map<number, string>();
     let gridPattern: CanvasPattern | null = null; let gridKey = '';
@@ -81,7 +81,7 @@ export function DotBackground() {
       dpr = Math.min(2, devicePixelRatio || 1); w = innerWidth; h = innerHeight;
       canvas.width = w * dpr; canvas.height = h * dpr; canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
       cols = Math.ceil(w / GAP); rows = Math.ceil(h / GAP);
-      best = new Float32Array(cols * rows); toneBuf = new Float32Array(cols * rows);
+      best = new Float32Array(cols * rows); toneBuf = new Float32Array(cols * rows); markMask = new Uint8Array(cols * rows);
       dirty = true;
     };
     const dark = () => document.documentElement.getAttribute('data-theme') === 'dark' || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
@@ -100,8 +100,47 @@ export function DotBackground() {
       // base grid: one pattern fill instead of thousands of tiny rects
       ctx.imageSmoothingEnabled = false;
       const pat = gridFill(isDark); if (pat) { ctx.fillStyle = pat; ctx.fillRect(0, 0, w, h); }
-      best.fill(0);
+      best.fill(0); markMask.fill(0);
       let any = false;
+      // logo marks: same dots, same dither, just a different shape
+      for (const M of MARKS) {
+        const sc = M.size / MARK_H;
+        const cx = M.x * w + (mouse.x - .5) * 30 * M.depth;
+        const bob = Math.sin(idle * .02 + M.x * 9 + M.y * 3) * 7 * M.depth; // soft bounce
+        const cy = M.y * h - scroll * M.depth + (mouse.y - .5) * 20 * M.depth + bob;
+        const reach = M.size * .9;
+        if (cy + reach < 0 || cy - reach > h) continue;
+        any = true;
+        const rot = M.rot; // the logo never spins
+        const cR = Math.cos(-rot), sR = Math.sin(-rot);
+        const i0 = Math.max(0, Math.floor((cx - reach) / GAP)), i1 = Math.min(cols - 1, Math.ceil((cx + reach) / GAP));
+        const j0 = Math.max(0, Math.floor((cy - reach) / GAP)), j1 = Math.min(rows - 1, Math.ceil((cy + reach) / GAP));
+        const feather = Math.max(1.5, .8 * sc), radius = 1.6 * sc, halfW = BAR_W * sc / 2;
+        for (let j = j0; j <= j1; j++) {
+          const py = j * GAP - cy; const row = j * cols;
+          for (let i = i0; i <= i1; i++) {
+            const px = i * GAP - cx;
+            // into the mark's own (unrotated) space, origin at its centre
+            const lx = px * cR - py * sR + MARK_W * sc / 2, ly = px * sR + py * cR + MARK_H * sc / 2;
+            if (lx < -feather || lx > MARK_W * sc + feather || ly < -feather || ly > MARK_H * sc + feather) continue;
+            let near = 1e9, tone = 0;
+            for (let bi = 0; bi < 3; bi++) {
+              const [bx, bh] = BARS[bi];
+              const ccx = (bx + BAR_W / 2) * sc, ccy = (MARK_H - bh / 2) * sc;
+              const qx = Math.max(Math.abs(lx - ccx) - (halfW - radius), 0);
+              const qy = Math.max(Math.abs(ly - ccy) - (bh * sc / 2 - radius), 0);
+              const d = Math.sqrt(qx * qx + qy * qy) - radius;
+              if (d < near) { near = d; tone = .18 + bi * .22; }
+            }
+            if (near > feather + 3 * GAP) continue;
+            if (near > feather) { markMask[row + i] = 1; continue; } // halo around the logo
+            const v = near <= 0 ? .95 : .95 * (1 - near / feather);
+            const k = row + i;
+            best[k] = v; toneBuf[k] = tone;
+            markMask[k] = 1; // this cell belongs to the logo: rings keep away
+          }
+        }
+      }
       // each ring only visits the cells inside its own bounding box
       for (const R of RINGS) {
         const cx = R.x * w + (mouse.x - .5) * 30 * R.depth;
@@ -128,43 +167,8 @@ export function DotBackground() {
             const arc = Math.max(0, .62 + .38 * c) * (c < -.55 ? Math.max(0, 1 + (c + .55) * 2.2) : 1);
             const v = EXP[Math.round((e + 3) / 6 * EXP_N)] * Math.min(1, arc);
             const k = row + i;
+            if (markMask[k]) continue; // a logo owns this spot, rings never overlap it
             if (v > best[k]) { best[k] = v; toneBuf[k] = (c * -.5 + .5) * .8; }
-          }
-        }
-      }
-      // logo marks: same dots, same dither, just a different shape
-      for (const M of MARKS) {
-        const sc = M.size / MARK_H;
-        const cx = M.x * w + (mouse.x - .5) * 30 * M.depth;
-        const cy = M.y * h - scroll * M.depth + (mouse.y - .5) * 20 * M.depth;
-        const reach = M.size * .9;
-        if (cy + reach < 0 || cy - reach > h) continue;
-        any = true;
-        const rot = M.rot + idle * .006 * M.depth + scroll * .0002 * M.depth;
-        const cR = Math.cos(-rot), sR = Math.sin(-rot);
-        const i0 = Math.max(0, Math.floor((cx - reach) / GAP)), i1 = Math.min(cols - 1, Math.ceil((cx + reach) / GAP));
-        const j0 = Math.max(0, Math.floor((cy - reach) / GAP)), j1 = Math.min(rows - 1, Math.ceil((cy + reach) / GAP));
-        const feather = Math.max(1.5, .8 * sc), radius = 1.6 * sc, halfW = BAR_W * sc / 2;
-        for (let j = j0; j <= j1; j++) {
-          const py = j * GAP - cy; const row = j * cols;
-          for (let i = i0; i <= i1; i++) {
-            const px = i * GAP - cx;
-            // into the mark's own (unrotated) space, origin at its centre
-            const lx = px * cR - py * sR + MARK_W * sc / 2, ly = px * sR + py * cR + MARK_H * sc / 2;
-            if (lx < -feather || lx > MARK_W * sc + feather || ly < -feather || ly > MARK_H * sc + feather) continue;
-            let near = 1e9, tone = 0;
-            for (let bi = 0; bi < 3; bi++) {
-              const [bx, bh] = BARS[bi];
-              const ccx = (bx + BAR_W / 2) * sc, ccy = (MARK_H - bh / 2) * sc;
-              const qx = Math.max(Math.abs(lx - ccx) - (halfW - radius), 0);
-              const qy = Math.max(Math.abs(ly - ccy) - (bh * sc / 2 - radius), 0);
-              const d = Math.sqrt(qx * qx + qy * qy) - radius;
-              if (d < near) { near = d; tone = .18 + bi * .22; }
-            }
-            if (near > feather) continue;
-            const v = near <= 0 ? .95 : .95 * (1 - near / feather);
-            const k = row + i;
-            if (v > best[k]) { best[k] = v; toneBuf[k] = tone; }
           }
         }
       }
