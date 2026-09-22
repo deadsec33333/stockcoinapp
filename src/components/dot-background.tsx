@@ -3,8 +3,6 @@
 import { useEffect, useRef } from 'react';
 
 // Halftone / dithered dot background with a subtle holo shift (mouse + scroll).
-// Performance: every ring is rendered ONCE into its own small sprite. Each frame only
-// blits those sprites (cheap GPU copies) and lays one light-streak + one glow gradient on top.
 type Ring = { x: number; y: number; r: number; t: number; squash: number; a0: number; depth: number };
 const RINGS: Ring[] = [
   // x: fraction of width, y: fraction of first screen heights (page coords), r/t in px
@@ -31,8 +29,8 @@ const RINGS: Ring[] = [
   { x: .92, y: 4.9, r: 180, t: 38, squash: .9, a0: .6, depth: .7 },
   { x: .45, y: 5.3, r: 210, t: 42, squash: .9, a0: 1.9, depth: .6 },
 ];
-const GAP_DESKTOP = 5, GAP_MOBILE = 6;
 const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map(v => (v + .5) / 16);
+// mint -> aqua -> holo blue -> violet (holo palette blended in)
 const STOPS: [number, number, number][] = [[31, 43, 255], [106, 61, 255], [176, 107, 255], [215, 123, 255], [63, 217, 255], [120, 200, 255], [46, 91, 255], [31, 43, 255]];
 function mix(t: number): [number, number, number] {
   t = ((t % 1) + 1) % 1; const f = t * (STOPS.length - 1); const i = Math.floor(f); const k = f - i;
@@ -41,123 +39,143 @@ function mix(t: number): [number, number, number] {
 }
 const hash = (x: number, y: number) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
 
-type Sprite = { canvas: HTMLCanvasElement; w: number; h: number; ox: number; oy: number };
-
-function buildSprite(r: Ring, gap: number, dpr: number, dark: boolean, seed: number): Sprite {
-  const pad = r.t * 3;
-  const cells = Math.ceil((r.r + pad) / gap);
-  const w = cells * 2 * gap, h = Math.ceil((r.r * r.squash + pad) / gap) * 2 * gap;
-  const c = document.createElement('canvas');
-  c.width = Math.ceil(w * dpr); c.height = Math.ceil(h * dpr);
-  const ctx = c.getContext('2d')!;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const cx = w / 2, cy = h / 2;
-  const cols = w / gap, rows = h / gap;
-  for (let j = 0; j < rows; j++) {
-    for (let i = 0; i < cols; i++) {
-      const x = i * gap + gap / 2, y = j * gap + gap / 2;
-      const dx = x - cx, dy = (y - cy) / r.squash; const d = Math.hypot(dx, dy);
-      const e = (d - r.r) / r.t; if (e > 3 || e < -3) continue;
-      const ang = Math.atan2(dy, dx);
-      const cc = Math.cos(ang - r.a0);
-      const arc = Math.max(0, .62 + .38 * cc) * (cc < -.55 ? Math.max(0, 1 + (cc + .55) * 2.2) : 1);
-      const dens = Math.min(1, Math.exp(-e * e * 1.6) * Math.min(1, arc) * (dark ? 1.15 : 1.3));
-      if (dens < .04) continue;
-      const thr = BAYER[(j & 3) * 4 + (i & 3)] * .85 + hash(i + seed * 31, j) * .3 - .1;
-      if (dens < thr) continue;
-      const size = dens > .75 ? 3 : dens > .45 ? 2 : 1.4;
-      const tone = (cc * -.5 + .5) * .8;
-      const [cr, cg, cb] = mix(tone * .6 + (dx + dy * .6) / 900 + seed * .13);
-      ctx.fillStyle = `rgba(${cr | 0},${cg | 0},${cb | 0},${dark ? .75 : .95})`;
-      ctx.fillRect(x - size / 2, y - size / 2, size, size);
-    }
-  }
-  return { canvas: c, w, h, ox: cx, oy: cy };
-}
+// ---- performance helpers (same look as before, far less work per frame) ----
+const PAL_N = 1024;
+const PAL = (() => { const a = new Float32Array(PAL_N * 3); for (let i = 0; i < PAL_N; i++) { const [r, g, b] = mix(i / PAL_N); a[i * 3] = r; a[i * 3 + 1] = g; a[i * 3 + 2] = b; } return a; })();
+const EXP_N = 512; // exp(-e*e*1.6) for e in [-3, 3]
+const EXP = (() => { const a = new Float32Array(EXP_N + 1); for (let i = 0; i <= EXP_N; i++) { const e = -3 + 6 * i / EXP_N; a[i] = Math.exp(-e * e * 1.6); } return a; })();
 
 export function DotBackground() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const canvas = ref.current!; const ctx = canvas.getContext('2d', { alpha: true })!;
+    const canvas = ref.current!; const ctx = canvas.getContext('2d')!;
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const mobile = matchMedia('(max-width: 760px)').matches;
-    const GAP = mobile ? GAP_MOBILE : GAP_DESKTOP;
-    let w = 0, h = 0, dpr = 1, raf = 0;
-    let sprites: Sprite[] = []; let spriteKey = '';
+    const GAP = mobile ? 6 : 5;
+    let w = 0, h = 0, dpr = 1, raf = 0, dirty = true;
     const mouse = { x: .5, y: .3, tx: .5, ty: .3 };
-    let scroll = window.scrollY, drawnScroll = -1, shift = 0, shiftTarget = 0;
-    const isDark = () => document.documentElement.getAttribute('data-theme') === 'dark' || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+    let scroll = window.scrollY, shift = 0, shiftTarget = 0, idle = 0;
+    // reusable buffers
+    let cols = 0, rows = 0;
+    let best = new Float32Array(0), toneBuf = new Float32Array(0);
+    const buckets = new Map<number, number[]>();
+    const styleCache = new Map<number, string>();
+    let gridPattern: CanvasPattern | null = null; let gridKey = '';
+    const HASH = new Float32Array(64 * 64); for (let j = 0; j < 64; j++) for (let i = 0; i < 64; i++) HASH[j * 64 + i] = hash(i, j);
 
-    const ensureSprites = () => {
-      const dark = isDark();
-      const key = `${dpr}|${dark}|${GAP}`;
-      if (key === spriteKey) return;
-      spriteKey = key;
-      sprites = RINGS.map((r, n) => buildSprite(r, GAP, dpr, dark, n));
-    };
     const resize = () => {
-      dpr = Math.min(1.5, devicePixelRatio || 1); w = innerWidth; h = innerHeight;
-      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
-      canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-      ensureSprites(); draw();
+      dpr = Math.min(2, devicePixelRatio || 1); w = innerWidth; h = innerHeight;
+      canvas.width = w * dpr; canvas.height = h * dpr; canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+      cols = Math.ceil(w / GAP); rows = Math.ceil(h / GAP);
+      best = new Float32Array(cols * rows); toneBuf = new Float32Array(cols * rows);
+      dirty = true;
+    };
+    const dark = () => document.documentElement.getAttribute('data-theme') === 'dark' || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+    const gridFill = (isDark: boolean) => {
+      const key = `${isDark}`;
+      if (gridPattern && key === gridKey) return gridPattern;
+      const tile = document.createElement('canvas'); tile.width = GAP * 2; tile.height = GAP * 2;
+      const t = tile.getContext('2d')!; t.fillStyle = isDark ? 'rgba(106,61,255,.18)' : 'rgba(106,61,255,.26)'; t.fillRect(0, 0, 1, 1);
+      gridPattern = ctx.createPattern(tile, 'repeat'); gridKey = key; return gridPattern;
     };
 
     function draw() {
-      const dark = isDark();
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.clearRect(0, 0, w, h);
-      const mdx = (mouse.x - .5), mdy = (mouse.y - .5);
+      const isDark = dark();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+      const mx = mouse.x * w, my = mouse.y * h;
+      // base grid: one pattern fill instead of thousands of tiny rects
+      ctx.imageSmoothingEnabled = false;
+      const pat = gridFill(isDark); if (pat) { ctx.fillStyle = pat; ctx.fillRect(0, 0, w, h); }
+      best.fill(0);
       let any = false;
-      for (let n = 0; n < RINGS.length; n++) {
-        const r = RINGS[n], s = sprites[n];
-        const cx = r.x * w + mdx * 30 * r.depth;
-        const cy = r.y * h - scroll * r.depth + mdy * 20 * r.depth;
-        if (cy + s.h / 2 < 0 || cy - s.h / 2 > h || cx + s.w / 2 < 0 || cx - s.w / 2 > w) continue;
-        // snap to the dot grid so every ring stays aligned to the same pixel grid
-        const x0 = Math.round((cx - s.ox) / GAP) * GAP, y0 = Math.round((cy - s.oy) / GAP) * GAP;
-        ctx.drawImage(s.canvas, x0, y0, s.w, s.h);
+      // each ring only visits the cells inside its own bounding box
+      for (const R of RINGS) {
+        const cx = R.x * w + (mouse.x - .5) * 30 * R.depth;
+        const cy = R.y * h - scroll * R.depth + (mouse.y - .5) * 20 * R.depth;
+        if (!(cy + R.r + 80 > 0 && cy - R.r - 80 < h)) continue;
         any = true;
+        const rot = R.a0 + idle * .02 * R.depth + scroll * .0004 * R.depth;
+        const cR = Math.cos(rot), sR = Math.sin(rot);
+        const outer = R.r + 3 * R.t, inner = Math.max(0, R.r - 3 * R.t);
+        const o2 = outer * outer, i2 = inner * inner;
+        const i0 = Math.max(0, Math.floor((cx - outer) / GAP)), i1 = Math.min(cols - 1, Math.ceil((cx + outer) / GAP));
+        const j0 = Math.max(0, Math.floor((cy - outer * R.squash) / GAP)), j1 = Math.min(rows - 1, Math.ceil((cy + outer * R.squash) / GAP));
+        const invT = 1 / R.t, invSq = 1 / R.squash;
+        for (let j = j0; j <= j1; j++) {
+          const dy = (j * GAP - cy) * invSq; const dy2 = dy * dy;
+          if (dy2 > o2) continue;
+          const row = j * cols;
+          for (let i = i0; i <= i1; i++) {
+            const dx = i * GAP - cx; const d2 = dx * dx + dy2;
+            if (d2 > o2 || d2 < i2) continue;
+            const d = Math.sqrt(d2);
+            const e = (d - R.r) * invT;
+            const c = d > 0 ? (dx * cR + dy * sR) / d : 1;           // cos(angle - rot) without atan2
+            const arc = Math.max(0, .62 + .38 * c) * (c < -.55 ? Math.max(0, 1 + (c + .55) * 2.2) : 1);
+            const v = EXP[Math.round((e + 3) / 6 * EXP_N)] * Math.min(1, arc);
+            const k = row + i;
+            if (v > best[k]) { best[k] = v; toneBuf[k] = (c * -.5 + .5) * .8; }
+          }
+        }
       }
       if (!any) return;
-      // holo light: a moving streak and a soft glow at the cursor, painted only onto existing dots
-      ctx.globalCompositeOperation = 'source-atop';
-      const pos = ((shift * 1.6) % 1 + 1) % 1;
-      const g = ctx.createLinearGradient(0, 0, w, h * .6);
-      const a = Math.max(0, pos - .06), b = pos, c = Math.min(1, pos + .06);
-      g.addColorStop(0, 'rgba(235,248,255,0)'); g.addColorStop(a, 'rgba(235,248,255,0)');
-      g.addColorStop(b, `rgba(235,248,255,${dark ? .55 : .7})`);
-      g.addColorStop(c, 'rgba(235,248,255,0)'); g.addColorStop(1, 'rgba(235,248,255,0)');
-      // only paint the band where the streak actually is
-      const bandX = pos * w, bandW = w * .35;
-      ctx.fillStyle = g; ctx.fillRect(Math.max(0, bandX - bandW), 0, bandW * 2, h);
-      const rg = ctx.createRadialGradient(mouse.x * w, mouse.y * h, 0, mouse.x * w, mouse.y * h, 260);
-      rg.addColorStop(0, 'rgba(160,230,255,.45)'); rg.addColorStop(1, 'rgba(160,230,255,0)');
-      ctx.fillStyle = rg; ctx.fillRect(mouse.x * w - 260, mouse.y * h - 260, 520, 520);
-      ctx.globalCompositeOperation = 'source-over';
+      for (const arr of buckets.values()) arr.length = 0;
+      const invBand = 1 / (w * .55), dens0 = isDark ? 1.15 : 1.3, inv260 = 1 / 260;
+      for (let j = 0; j < rows; j++) {
+        const y = j * GAP; const row = j * cols;
+        for (let i = 0; i < cols; i++) {
+          const bv = best[row + i]; if (bv < .04) continue;
+          const x = i * GAP;
+          const gd = Math.sqrt((x - mx) * (x - mx) + (y - my) * (y - my));
+          const glow = gd < 260 ? (1 - gd * inv260) * .35 : 0;
+          const dens = Math.min(1, bv * dens0 + glow * bv);
+          const thr = BAYER[(j & 3) * 4 + (i & 3)] * .85 + HASH[(j & 63) * 64 + (i & 63)] * .3 - .1;
+          if (dens < thr) continue;
+          const size = dens > .75 ? 3 : dens > .45 ? 2 : 1.4;
+          const band = (x + y * .6) * invBand;
+          let t = toneBuf[row + i] * .6 + band + shift * 2.2; t = t - Math.floor(t);
+          const pi = Math.min(PAL_N - 1, (t * PAL_N) | 0) * 3;
+          let cr = PAL[pi], cg = PAL[pi + 1], cb = PAL[pi + 2];
+          let s = band * .9 - shift * 3.2; s = s - Math.floor(s);
+          const streak = Math.abs(s - .5);
+          const flash = Math.max(0, 1 - streak / .07) * .75 + glow * 1.2;
+          if (flash > 0) { const f = Math.min(1, flash); cr += (235 - cr) * f; cg += (248 - cg) * f; cb += (255 - cb) * f * .6; }
+          const a = isDark ? Math.min(1, .6 + glow + flash * .3) : .95;
+          const qa = Math.round(a * 10);
+          const key = ((Math.round(cr / 12) * 32 + Math.round(cg / 12)) * 32 + Math.round(cb / 12)) * 16 + qa;
+          let arr = buckets.get(key); if (!arr) buckets.set(key, arr = []);
+          arr.push(x - size / 2 + GAP / 2, y - size / 2 + GAP / 2, size);
+        }
+      }
+      for (const [key, arr] of buckets) {
+        if (!arr.length) continue;
+        let style = styleCache.get(key);
+        if (!style) {
+          const qa = key % 16, rest = (key - qa) / 16, qb = rest % 32, rest2 = (rest - qb) / 32, qg = rest2 % 32, qr = (rest2 - qg) / 32;
+          style = `rgba(${qr * 12},${qg * 12},${qb * 12},${(qa / 10).toFixed(1)})`; styleCache.set(key, style);
+        }
+        ctx.fillStyle = style;
+        for (let k = 0; k < arr.length; k += 3) ctx.fillRect(arr[k], arr[k + 1], arr[k + 2], arr[k + 2]);
+      }
     }
-
     function tick() {
-      raf = 0;
+      raf = requestAnimationFrame(tick);
       if (document.hidden) return;
-      mouse.x += (mouse.tx - mouse.x) * .1; mouse.y += (mouse.ty - mouse.y) * .1;
-      shift += (shiftTarget - shift) * .08;
-      draw(); drawnScroll = scroll;
-      const settling = Math.abs(mouse.tx - mouse.x) + Math.abs(mouse.ty - mouse.y) + Math.abs(shiftTarget - shift) > .0008;
-      if (settling) raf = requestAnimationFrame(tick);
+      const ease = .08;
+      const moved = Math.abs(mouse.tx - mouse.x) + Math.abs(mouse.ty - mouse.y) + Math.abs(shiftTarget - shift) > .0005;
+      mouse.x += (mouse.tx - mouse.x) * ease; mouse.y += (mouse.ty - mouse.y) * ease;
+      shift += (shiftTarget - shift) * .06;
+      if (!reduced) idle += mobile ? .5 : 1;
+      if (moved || dirty || (!reduced && Math.round(idle) % (mobile ? 4 : 2) === 0)) { draw(); dirty = false; }
     }
-    const wake = () => { if (!raf) raf = requestAnimationFrame(tick); };
-    const target = () => { shiftTarget = (mouse.tx - .5) * .35 + (mouse.ty - .5) * .2 + scroll * .00035; };
-    const onMove = (e: PointerEvent) => { mouse.tx = e.clientX / w; mouse.ty = e.clientY / h; target(); wake(); };
-    const onScroll = () => { scroll = window.scrollY; target(); if (scroll !== drawnScroll) wake(); };
-
-    resize();
-    addEventListener('resize', resize);
-    addEventListener('scroll', onScroll, { passive: true });
-    if (!reduced) addEventListener('pointermove', onMove, { passive: true });
-    const themeObs = new MutationObserver(() => { ensureSprites(); draw(); });
+    const onMove = (e: PointerEvent) => { mouse.tx = e.clientX / w; mouse.ty = e.clientY / h; shiftTarget = (mouse.tx - .5) * .35 + (mouse.ty - .5) * .2 + scroll * .00035; };
+    const onScroll = () => { scroll = window.scrollY; shiftTarget = (mouse.tx - .5) * .35 + (mouse.ty - .5) * .2 + scroll * .00035; dirty = true; };
+    resize(); draw();
+    addEventListener('resize', resize); addEventListener('scroll', onScroll, { passive: true });
+    if (!reduced) { addEventListener('pointermove', onMove, { passive: true }); raf = requestAnimationFrame(tick); }
+    const themeObs = new MutationObserver(() => { dirty = true; if (reduced) draw(); });
     themeObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => { if (raf) cancelAnimationFrame(raf); removeEventListener('resize', resize); removeEventListener('scroll', onScroll); removeEventListener('pointermove', onMove); themeObs.disconnect(); };
+    return () => { cancelAnimationFrame(raf); removeEventListener('resize', resize); removeEventListener('scroll', onScroll); removeEventListener('pointermove', onMove); themeObs.disconnect(); };
   }, []);
   return <canvas ref={ref} className="dot-background" aria-hidden="true" />;
 }
