@@ -277,3 +277,14 @@ body { background: transparent; }
 
 /* ===== No rainbow outline on holo icons: plain silver edge ===== */
 .holo::after { background: linear-gradient(135deg, rgba(255,255,255,.9), rgba(167,173,184,.8) 50%, rgba(255,255,255,.9)); padding: 1px; opacity: 1; }
+
+/* ===== Nav: solid at the top, translucent + blurred once you scroll ===== */
+.navigation {
+  background: var(--bg);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  transition: background-color .45s cubic-bezier(.22,1,.36,1), backdrop-filter .45s cubic-bezier(.22,1,.36,1), -webkit-backdrop-filter .45s cubic-bezier(.22,1,.36,1);
+}
+.navigation.is-scrolled {
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+}
