@@ -13,9 +13,28 @@ export function Navigation() {
   const path = usePathname(); const [open, setOpen] = useState(false); const [dark, setDark] = useState(false);
   useEffect(() => { setDark(document.documentElement.dataset.theme === 'dark'); }, []);
   useEffect(() => { setOpen(false); }, [path]);
+  // Dynamic-island nav: full bar at the top, shrinks to a small pill while scrolling down,
+  // grows back into a wide pill when scrolling up or when the mouse is on it.
   const [scrolled, setScrolled] = useState(false);
-  useEffect(() => { const onScroll = () => setScrolled(window.scrollY > 8); onScroll(); window.addEventListener('scroll', onScroll, { passive: true }); return () => window.removeEventListener('scroll', onScroll); }, []);
+  const [compact, setCompact] = useState(false);
+  const [hover, setHover] = useState(false);
+  useEffect(() => {
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY; const dy = y - last;
+      setScrolled(y > 8);
+      if (y <= 8) setCompact(false);
+      else if (dy > 4) setCompact(true);
+      else if (dy < -4) setCompact(false);
+      if (Math.abs(dy) > 4) last = y;
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  useEffect(() => { if (open) setCompact(false); }, [open]);
+  const island = scrolled ? ` is-scrolled${compact && !hover && !open ? ' is-compact' : ''}` : '';
   function toggle() { const next = !dark; setDark(next); document.documentElement.dataset.theme = next ? 'dark' : 'light'; try { localStorage.setItem('stockcoin-theme', next ? 'dark' : 'light'); } catch {} }
-  return <header className={`navigation${scrolled ? ' is-scrolled' : ''}`}><div className="nav-inner"><Link className="brand" href="/" aria-label={`${brand} home`}><Mark />{brand.toLowerCase()}<span className="beta">BETA</span></Link><nav className="desktop-nav" aria-label="Main navigation">{links.map(([label, href]) => <Link key={href} href={href} aria-current={path === href ? 'page' : undefined}>{label}</Link>)}</nav><div className="nav-actions"><button className="icon-button" aria-label={dark ? 'Use light theme' : 'Use dark theme'} onClick={toggle}>{dark ? <Sun size={17} /> : <Moon size={17} />}</button><PostButton className="button primary small nav-post" label="Launch a coin" /><button className="icon-button mobile-menu" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} aria-controls="mobile-navigation" onClick={() => setOpen(!open)}>{open ? <X size={20} /> : <Menu size={20} />}</button></div></div>{open && <nav id="mobile-navigation" className="mobile-navigation" aria-label="Mobile navigation">{links.map(([label, href]) => <Link key={href} href={href} aria-current={path === href ? 'page' : undefined}>{label}</Link>)}<PostButton /></nav>}</header>;
+  return <header className={`navigation${island}`}><div className="nav-inner" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={() => setHover(true)} onBlur={() => setHover(false)}><Link className="brand" href="/" aria-label={`${brand} home`}><Mark />{brand.toLowerCase()}<span className="beta">BETA</span></Link><nav className="desktop-nav" aria-label="Main navigation">{links.map(([label, href]) => <Link key={href} href={href} aria-current={path === href ? 'page' : undefined}>{label}</Link>)}</nav><div className="nav-actions"><button className="icon-button" aria-label={dark ? 'Use light theme' : 'Use dark theme'} onClick={toggle}>{dark ? <Sun size={17} /> : <Moon size={17} />}</button><PostButton className="button primary small nav-post" label="Launch a coin" /><button className="icon-button mobile-menu" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} aria-controls="mobile-navigation" onClick={() => setOpen(!open)}>{open ? <X size={20} /> : <Menu size={20} />}</button></div></div>{open && <nav id="mobile-navigation" className="mobile-navigation" aria-label="Mobile navigation">{links.map(([label, href]) => <Link key={href} href={href} aria-current={path === href ? 'page' : undefined}>{label}</Link>)}<PostButton /></nav>}</header>;
 }
 export function Footer() { return <footer className="footer container"><div className="footer-top"><Link className="brand" href="/"><Mark />{brand.toLowerCase()}</Link><span>Small sparks. Shared possibilities.</span><div><Link href="/docs">Documentation</Link><Link href="/docs#risks">Risks & disclaimer</Link></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} {brand}. Built around community.</span><span>Memecoins carry risk. Nothing here is financial advice.</span><span className="network"><span className="dot" /> On Solana</span></div></footer>; }
