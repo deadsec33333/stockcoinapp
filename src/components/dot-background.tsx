@@ -40,6 +40,20 @@ function mix(t: number): [number, number, number] {
 const hash = (x: number, y: number) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); };
 
 // ---- performance helpers (same look as before, far less work per frame) ----
+
+// the stockcoin mark (three rising bars, tilted) scattered through the same dot field
+type Mark = { x: number; y: number; size: number; rot: number; depth: number };
+const MARKS: Mark[] = [
+  { x: .22, y: .38, size: 112, rot: .42, depth: .8 },
+  { x: .54, y: .72, size: 141, rot: .45, depth: .6 },
+  { x: .86, y: 1.48, size: 129, rot: .48, depth: .65 },
+  { x: .68, y: 2.35, size: 153, rot: .34, depth: .6 },
+  { x: .9, y: 3.1, size: 89, rot: .38, depth: .85 },
+  { x: .74, y: 4.3, size: 98, rot: .33, depth: .8 },
+];
+// bar layout in the mark's own units (width 21, height 25), same proportions as the logo
+const BARS: [number, number][] = [[0, 12], [8, 19], [16, 25]]; // [left, height]
+const BAR_W = 5, MARK_W = 21, MARK_H = 25;
 const PAL_N = 1024;
 const PAL = (() => { const a = new Float32Array(PAL_N * 3); for (let i = 0; i < PAL_N; i++) { const [r, g, b] = mix(i / PAL_N); a[i * 3] = r; a[i * 3 + 1] = g; a[i * 3 + 2] = b; } return a; })();
 const EXP_N = 512; // exp(-e*e*1.6) for e in [-3, 3]
@@ -115,6 +129,42 @@ export function DotBackground() {
             const v = EXP[Math.round((e + 3) / 6 * EXP_N)] * Math.min(1, arc);
             const k = row + i;
             if (v > best[k]) { best[k] = v; toneBuf[k] = (c * -.5 + .5) * .8; }
+          }
+        }
+      }
+      // logo marks: same dots, same dither, just a different shape
+      for (const M of MARKS) {
+        const sc = M.size / MARK_H;
+        const cx = M.x * w + (mouse.x - .5) * 30 * M.depth;
+        const cy = M.y * h - scroll * M.depth + (mouse.y - .5) * 20 * M.depth;
+        const reach = M.size * .9;
+        if (cy + reach < 0 || cy - reach > h) continue;
+        any = true;
+        const rot = M.rot + idle * .006 * M.depth + scroll * .0002 * M.depth;
+        const cR = Math.cos(-rot), sR = Math.sin(-rot);
+        const i0 = Math.max(0, Math.floor((cx - reach) / GAP)), i1 = Math.min(cols - 1, Math.ceil((cx + reach) / GAP));
+        const j0 = Math.max(0, Math.floor((cy - reach) / GAP)), j1 = Math.min(rows - 1, Math.ceil((cy + reach) / GAP));
+        const feather = Math.max(1.5, .8 * sc), radius = 1.6 * sc, halfW = BAR_W * sc / 2;
+        for (let j = j0; j <= j1; j++) {
+          const py = j * GAP - cy; const row = j * cols;
+          for (let i = i0; i <= i1; i++) {
+            const px = i * GAP - cx;
+            // into the mark's own (unrotated) space, origin at its centre
+            const lx = px * cR - py * sR + MARK_W * sc / 2, ly = px * sR + py * cR + MARK_H * sc / 2;
+            if (lx < -feather || lx > MARK_W * sc + feather || ly < -feather || ly > MARK_H * sc + feather) continue;
+            let near = 1e9, tone = 0;
+            for (let bi = 0; bi < 3; bi++) {
+              const [bx, bh] = BARS[bi];
+              const ccx = (bx + BAR_W / 2) * sc, ccy = (MARK_H - bh / 2) * sc;
+              const qx = Math.max(Math.abs(lx - ccx) - (halfW - radius), 0);
+              const qy = Math.max(Math.abs(ly - ccy) - (bh * sc / 2 - radius), 0);
+              const d = Math.sqrt(qx * qx + qy * qy) - radius;
+              if (d < near) { near = d; tone = .18 + bi * .22; }
+            }
+            if (near > feather) continue;
+            const v = near <= 0 ? .95 : .95 * (1 - near / feather);
+            const k = row + i;
+            if (v > best[k]) { best[k] = v; toneBuf[k] = tone; }
           }
         }
       }
