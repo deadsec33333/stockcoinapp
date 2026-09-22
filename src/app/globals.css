@@ -232,3 +232,14 @@ input::placeholder { color: var(--muted-text); opacity: 1; }
 .holo-border::after { opacity: .9; }
 .holo-border::before { opacity: .12; }
 .hero-art:before { background: radial-gradient(ellipse, rgba(106,61,255,.16), rgba(63,217,255,.08) 45%, transparent 70%); }
+
+/* ===== Holo reacts to movement: calm silver at rest, rainbow when tilted (mouse or scroll) ===== */
+.holo::before { opacity: calc(.12 + .78 * var(--holo-power, 0)); }
+.holo > .holo-grain { opacity: calc(.06 + .1 * var(--holo-power, 0)); }
+.holo-border::after { opacity: calc(.35 + .6 * var(--holo-power, 0)); }
+.holo-border::before,
+.holo-border:hover::before, .holo-border:focus-within::before { opacity: calc(.02 + .28 * var(--holo-power, 0)); }
+.hero-coin.holo, .floating-label.holo, .pair-visual > .holo {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 12px 34px -16px rgba(31,43,255,.35);
+}
+@media (prefers-reduced-motion: reduce) { .holo::before { opacity: .35; } }

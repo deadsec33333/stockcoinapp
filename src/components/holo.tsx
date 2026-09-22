@@ -22,6 +22,10 @@ export function HoloSurface({ children, className = '', variant = 'foil', as = '
   const y = useMotionTemplate`${tiltY}deg`;
   const sx = useMotionTemplate`${sheenX}%`;
   const sy = useMotionTemplate`${sheenY}%`;
+  // How strongly the rainbow shows: 0 at rest (silver), up to 1 while the sticker is being "tilted".
+  const power = useSpring(0, { stiffness: 120, damping: 22 });
+  const pw = useMotionTemplate`${power}`;
+  const scrollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const query = window.matchMedia('(hover: hover) and (pointer: fine)');
@@ -38,10 +42,29 @@ export function HoloSurface({ children, className = '', variant = 'foil', as = '
     }
   }, [reduced, finePointer, tiltX, tiltY, sheenX, sheenY]);
 
+  // Scrolling tilts every sticker a little, like moving it in your hand.
+  useEffect(() => {
+    if (reduced) return;
+    let last = window.scrollY;
+    const onScroll = () => {
+      const now = window.scrollY;
+      const dy = now - last; last = now;
+      if (bounds.current) return; // pointer is on it, pointer wins
+      sheenX.set(50 + 42 * Math.sin(now / 170));
+      sheenY.set(50 + 42 * Math.cos(now / 240));
+      tiltX.set(Math.max(-8, Math.min(8, -dy * 0.35)));
+      power.set(Math.min(1, 0.45 + Math.abs(dy) / 25));
+      if (scrollTimer.current) clearTimeout(scrollTimer.current);
+      scrollTimer.current = setTimeout(() => { if (!bounds.current) { power.set(0); tiltX.set(0); } }, 220);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); if (scrollTimer.current) clearTimeout(scrollTimer.current); };
+  }, [reduced, sheenX, sheenY, tiltX, power]);
+
   const enabled = finePointer && !reduced;
   function reset() {
     bounds.current = null;
-    tiltX.set(0); tiltY.set(0); sheenX.set(50); sheenY.set(50);
+    tiltX.set(0); tiltY.set(0); sheenX.set(50); sheenY.set(50); power.set(0);
   }
   function enter(event: PointerEvent<HTMLElement>) {
     if (enabled && event.pointerType !== 'touch') bounds.current = event.currentTarget.getBoundingClientRect();
@@ -54,11 +77,12 @@ export function HoloSurface({ children, className = '', variant = 'foil', as = '
     tiltX.set((0.5 - py) * 16);
     tiltY.set((px - 0.5) * 16);
     sheenX.set(px * 100); sheenY.set(py * 100);
+    power.set(Math.min(1, 0.4 + Math.hypot(px - 0.5, py - 0.5) * 1.5));
   }
   const Element = as === 'span' ? motion.span : motion.div;
   return <Element
     className={`${variant === 'foil' ? 'holo' : 'holo-border'} holo-tilt ${className}`}
-    style={{ '--tilt-x': x, '--tilt-y': y, '--sheen-x': sx, '--sheen-y': sy } as MotionStyle}
+    style={{ '--tilt-x': x, '--tilt-y': y, '--sheen-x': sx, '--sheen-y': sy, '--holo-power': pw } as MotionStyle}
     onPointerEnter={enter} onPointerMove={move} onPointerLeave={reset} onPointerCancel={reset}
   >
     <span className="holo-layer holo-shine" aria-hidden="true" />
