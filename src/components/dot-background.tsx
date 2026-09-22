@@ -45,8 +45,7 @@ const hash = (x: number, y: number) => { const s = Math.sin(x * 127.1 + y * 311.
 type Mark = { x: number; y: number; size: number; rot: number; depth: number };
 const MARKS: Mark[] = [
   { x: .22, y: .38, size: 112, rot: .42, depth: .8 },
-  { x: .54, y: .72, size: 141, rot: .45, depth: .6 },
-  { x: .86, y: 1.48, size: 129, rot: .48, depth: .65 },
+  { x: .12, y: 1.48, size: 129, rot: .48, depth: .65 },
   { x: .68, y: 2.35, size: 153, rot: .34, depth: .6 },
   { x: .9, y: 3.1, size: 89, rot: .38, depth: .85 },
   { x: .74, y: 4.3, size: 98, rot: .33, depth: .8 },
