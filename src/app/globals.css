@@ -327,3 +327,36 @@ body { background: transparent; }
 
 /* ===== No rainbow line under the nav ===== */
 .navigation::after { display: none; }
+
+/* ===== Performance pass ===== */
+/* dot grid behind everything is now a plain CSS pattern instead of being redrawn on the canvas */
+html { background-image: radial-gradient(circle, rgba(106,61,255,.26) .7px, transparent 1px); background-size: 10px 10px; }
+:root[data-theme=dark] html, html[data-theme=dark] { background-image: radial-gradient(circle, rgba(106,61,255,.2) .7px, transparent 1px); }
+/* stop repainting every holo element every frame; the sheen still follows the mouse */
+:where(.holo, .holo-border, .navigation, .headline-line.accent) { animation: none; --holo-angle: 35deg; }
+/* no backdrop blurs over big or opaque areas (they are re-rendered on every scroll frame) */
+.how-section { backdrop-filter: none; -webkit-backdrop-filter: none; }
+.floating-label, .floating-label.holo, .floating-label.holo > div { backdrop-filter: none; -webkit-backdrop-filter: none; }
+/* nav: constant blur (changing the blur radius each frame is expensive) */
+.navigation .nav-inner { -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%); will-change: auto; }
+/* float + jelly on the hero stickers: both go through `translate`, no layout work */
+@property --fx { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --fy { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@keyframes float-vars {
+  0%   { --fx: 0px;  --fy: 0px; }
+  25%  { --fx: 2px;  --fy: -6px; }
+  50%  { --fx: 0px;  --fy: -11px; }
+  75%  { --fx: -2px; --fy: -5px; }
+  100% { --fx: 0px;  --fy: 0px; }
+}
+@keyframes float-vars-mobile { 0%, 100% { --fy: 0px; } 50% { --fy: -6px; } }
+.hero-coin.holo, .floating-label.holo {
+  animation: float-vars 9s cubic-bezier(.37, 0, .63, 1) infinite;
+  translate: var(--fx) calc(var(--fy) + var(--jy, 0px));
+  will-change: translate;
+}
+.floating-label.holo.label-left  { animation-duration: 7.5s; animation-delay: -2.5s; }
+.floating-label.holo.label-right { animation-duration: 8.5s; animation-delay: -5s; }
+.hero-coin.holo { animation-duration: 10s; }
+@media (max-width: 760px) { .hero-coin.holo, .floating-label.holo { animation-name: float-vars-mobile; } }
+@media (prefers-reduced-motion: reduce) { .hero-coin.holo, .floating-label.holo { animation: none; } }
