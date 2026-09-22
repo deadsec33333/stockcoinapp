@@ -206,3 +206,29 @@ input::placeholder { color: var(--muted-text); opacity: 1; }
   border-radius: 10px; box-shadow: 0 1px 2px rgba(17,19,24,.06);
 }
 .floating-label.holo > .dot { margin-left: 2px; }
+
+/* ===== Holo palette + strength (colors only, animations unchanged) ===== */
+:root {
+  --holo-gradient: conic-gradient(from var(--holo-angle), #1F2BFF, #6A3DFF, #B06BFF, #3FD9FF, #E8F6FF, #2E5BFF, #D77BFF, #1F2BFF);
+  --holo-streaks: linear-gradient(118deg, transparent 18%, rgba(63,217,255,.9) 28%, rgba(255,255,255,.95) 34%, rgba(106,61,255,.9) 42%, transparent 52%, rgba(31,43,255,.85) 64%, rgba(232,246,255,.9) 70%, rgba(176,107,255,.85) 78%, transparent 88%);
+}
+:where(.holo, .holo-border, .navigation, .headline-line.accent) {
+  --holo-gradient: conic-gradient(from var(--holo-angle), #1F2BFF, #6A3DFF, #B06BFF, #3FD9FF, #E8F6FF, #2E5BFF, #D77BFF, #1F2BFF);
+}
+.holo::before {
+  background: var(--holo-streaks), var(--holo-gradient);
+  background-size: 200% 200%, 180% 180%;
+  background-position: var(--sheen-x, 50%) var(--sheen-y, 50%), var(--sheen-x, 50%) var(--sheen-y, 50%);
+  mix-blend-mode: hard-light;
+  opacity: .9;
+  filter: saturate(1.5) contrast(1.1);
+}
+.holo::after { background: linear-gradient(135deg, #E8F6FF, #6A3DFF 30%, #3FD9FF 55%, #1F2BFF 80%, #E8F6FF); }
+.holo-shine { background: linear-gradient(115deg, transparent 38%, rgba(255,255,255,.95) 50%, transparent 62%); }
+.holo-grain { opacity: .14; }
+.hero-coin.holo, .floating-label.holo, .pair-visual > .holo {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 12px 40px -12px rgba(31,43,255,.45), 0 0 60px -20px rgba(106,61,255,.5);
+}
+.holo-border::after { opacity: .9; }
+.holo-border::before { opacity: .12; }
+.hero-art:before { background: radial-gradient(ellipse, rgba(106,61,255,.16), rgba(63,217,255,.08) 45%, transparent 70%); }
