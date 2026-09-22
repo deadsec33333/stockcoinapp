@@ -243,3 +243,13 @@ input::placeholder { color: var(--muted-text); opacity: 1; }
   box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 12px 34px -16px rgba(31,43,255,.35);
 }
 @media (prefers-reduced-motion: reduce) { .holo::before { opacity: .35; } }
+
+/* ===== Dot background ===== */
+.dot-background { position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+:root { --dots-bg: #F4FBF8; }
+:root[data-theme=dark] { --dots-bg: #0B0C10; }
+html { background: var(--dots-bg); }
+body { background: transparent; }
+.how-section { background: color-mix(in srgb, var(--soft) 55%, transparent); backdrop-filter: blur(1px); }
+.closing { background: color-mix(in srgb, var(--accent-soft) 75%, transparent); }
+.stats-grid { background: color-mix(in srgb, var(--bg) 70%, transparent); }
