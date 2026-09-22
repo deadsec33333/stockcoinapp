@@ -274,3 +274,6 @@ body { background: transparent; }
   .hero-coin.holo, .floating-label.holo { animation-name: float-soft-mobile, holo-drift; }
 }
 @media (prefers-reduced-motion: reduce) { .hero-coin.holo, .floating-label.holo { animation: none; } }
+
+/* ===== No rainbow outline on holo icons: plain silver edge ===== */
+.holo::after { background: linear-gradient(135deg, rgba(255,255,255,.9), rgba(167,173,184,.8) 50%, rgba(255,255,255,.9)); padding: 1px; opacity: 1; }
