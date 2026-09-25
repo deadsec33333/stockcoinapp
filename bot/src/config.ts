@@ -1,4 +1,7 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
+// settings come from .env; env-values.txt works too, so the file never has to be renamed
+loadEnv();
+loadEnv({ path: 'env-values.txt' });
 
 function req(name: string): string {
   const v = process.env[name];
@@ -15,7 +18,7 @@ export const config = {
   siteUrl: opt('SITE_URL', 'https://example.com'),
   x: {
     bearer: () => req('X_BEARER_TOKEN'),
-    botUserId: () => req('X_BOT_USER_ID'),
+    botUserId: () => opt('X_BOT_USER_ID'), // optional: looked up from BOT_HANDLE when empty
     apiKey: () => req('X_API_KEY'),
     apiSecret: () => req('X_API_SECRET'),
     accessToken: () => req('X_ACCESS_TOKEN'),

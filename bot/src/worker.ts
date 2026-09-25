@@ -24,11 +24,8 @@ async function handle(m: Mention) {
   if (existing) return;
 
   const parsed = parseLaunch(m.text, config.botHandle);
-  if (!parsed.ok) {
-    // Only answer people who clearly tried (used $ or #); ignore plain chatter.
-    if (/[$#]/.test(m.text)) await reply(m.id, `Couldn't launch: ${parsed.reason}. Format: @${config.botHandle} $TICKER #AAPL`);
-    return;
-  }
+  // Replies cost money per post, so the bot only ever answers a successful launch.
+  if (!parsed.ok) { console.log(`skipped ${m.id}: ${parsed.reason}`); return; }
 
   const { data: stock } = await db.from('stocks').select('*').eq('symbol', parsed.stock).eq('enabled', true).maybeSingle();
 
@@ -36,14 +33,11 @@ async function handle(m: Mention) {
 
   const base = { tweet_id: m.id, x_user_id: m.authorId, ticker: parsed.ticker, coin_name: parsed.name };
 
-  if (!stock) {
-    await reply(m.id, `#${parsed.stock} isn't a supported stock yet. See the list: ${config.siteUrl}/pairs`);
-    return;
-  }
+  if (!stock) { console.log(`skipped ${m.id}: #${parsed.stock} is not a supported stock`); return; }
   if (await countSince({ x_user_id: m.authorId }) >= config.limits.perUserPerDay ||
       await countSince({}) >= config.limits.perDay) {
     await db.from('launches').insert({ ...base, stock_symbol: stock.symbol, status: 'rejected', error: 'daily limit' });
-    await reply(m.id, `Daily launch limit reached, try again tomorrow.`);
+    console.log(`skipped ${m.id}: daily limit reached`);
     return;
   }
 

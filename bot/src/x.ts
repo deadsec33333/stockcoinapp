@@ -11,8 +11,22 @@ export type Mention = {
   imageUrl?: string;       // first photo attached to the post, if any
 };
 
+// The numeric id of the bot account. Looked up once from the handle if it is not set.
+let botId: string | null = null;
+async function botUserId(): Promise<string> {
+  if (botId) return botId;
+  const fromEnv = config.x.botUserId();
+  if (fromEnv) return (botId = fromEnv);
+  const res = await fetch(`https://api.x.com/2/users/by/username/${config.botHandle}`, { headers: { Authorization: `Bearer ${config.x.bearer()}` } });
+  if (!res.ok) throw new Error(`X user lookup ${res.status}: ${await res.text()}`);
+  const body: any = await res.json();
+  if (!body.data?.id) throw new Error(`X user lookup: @${config.botHandle} not found`);
+  console.log(`bot account @${config.botHandle} = id ${body.data.id}`);
+  return (botId = body.data.id);
+}
+
 export async function fetchMentions(sinceId?: string): Promise<{ mentions: Mention[]; newestId?: string }> {
-  const url = new URL(`https://api.x.com/2/users/${config.x.botUserId()}/mentions`);
+  const url = new URL(`https://api.x.com/2/users/${await botUserId()}/mentions`);
   url.searchParams.set('max_results', '100');
   url.searchParams.set('tweet.fields', 'author_id,attachments,created_at');
   url.searchParams.set('expansions', 'author_id,attachments.media_keys');

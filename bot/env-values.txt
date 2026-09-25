@@ -1,0 +1,35 @@
+# ===== Brand =====
+BRAND_NAME=stockcoin
+BOT_HANDLE=stockcoinbot
+SITE_URL=https://stockcoinapp.vercel.app
+
+# ===== X (Twitter) API =====  (still to come)
+X_BEARER_TOKEN=AAAAAAAAAAAAAAAAAAAAAH2e%2FgEAAAAAZAFMvZZobtdOncudvIPa8W%2B1V%2FE%3DQUAo54hcLC3o8B1KXrKyv9PieeoDa7dNZlb8Ek54EcYepWM3Bx
+X_BOT_USER_ID=2102899994583810048
+X_API_KEY=XiEZ2xIrrdHTV30WA4Ig3pfgL
+X_API_SECRET=dCTmC6XbyZBWvPYUj8quaw9Oqa3mvSkLxhbmVTpuOiGYvHXe9F
+X_ACCESS_TOKEN=2102899994583810048-GjJOD2KVwcRHwZzXAqeOF5zuQoZDEy
+X_ACCESS_SECRET=vKCkjwDpJwbpfJPadgfjItiPWiYBYH2OjhWLNB3lt79sB
+X_REPLY_ENABLED=false
+
+# ===== Supabase =====
+SUPABASE_URL=https://woidhlyawfsueclegdju.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvaWRobHlhd2ZzdWVjbGVnZGp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MDEwNzEzMSwiZXhwIjoyMTA1NjgzMTMxfQ.3I-oapyGt4Yp04_jed_dn9EBic4nG6VgyQLxKyTY8SY
+
+# ===== Pinata (IPFS for coin images + metadata) =====
+PINATA_JWT=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiI1YzljNWQ5OC1hYmE1LTQ5NjMtYWEzYS1kZjZlNDNiNmVlZjgiLCJlbWFpbCI6Im1lc2thdXNrYXM4MEBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGluX3BvbGljeSI6eyJyZWdpb25zIjpbeyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJGUkExIn0seyJkZXNpcmVkUmVwbGljYXRpb25Db3VudCI6MSwiaWQiOiJOWUMxIn1dLCJ2ZXJzaW9uIjoxfSwibWZhX2VuYWJsZWQiOmZhbHNlLCJzdGF0dXMiOiJBQ1RJVkUifSwiYXV0aGVudGljYXRpb25UeXBlIjoic2NvcGVkS2V5Iiwic2NvcGVkS2V5S2V5IjoiMmU1MGMyZDBmYWJhZjQzM2Y2MTIiLCJzY29wZWRLZXlTZWNyZXQiOiIyZDQ2ZjdhNDRhMTExNDllMjIyYjM0MTA2NzI0ZjMzMTk4NjU4ZGE5YzcyODZhYmFkNzQzMDhlOTI4MjJkNzUxIiwiZXhwIjoxODIxNzM4NTczfQ.oUi3IR6CvMsfoqknb9Dz6zxejIGkliszo01F30ha5Zk
+
+# ===== PumpPortal Lightning API =====  (still to come)
+PUMPPORTAL_API_KEY=8t54ywbk8d942eb36x5kgatncdk48gkga8w58m2mcnqk8tag5x74wuttaxgn4n27b5j6mgut9143cyk8anu3jha7anq74mk1advm8xat6hup6u9p8du6uavd61h34dk6b9t6ykhb84ykucda64y36754pjm37ehqp6vtr84a10nau2mc58kcganegqpwtumf4wnjvb59x0kuf8
+DEV_BUY_SOL=0
+PRIORITY_FEE_SOL=0.0005
+
+# ===== Solana =====
+SOLANA_RPC_URL=https://mainnet.helius-rpc.com/?api-key=009213e9-6e03-4502-8d10-961f61719349
+PAYOUT_WALLET_SECRET=             # only needed when paying holders
+
+# ===== Safety limits =====
+DRY_RUN=true
+MAX_LAUNCHES_PER_USER_PER_DAY=3
+MAX_LAUNCHES_PER_DAY=50
+POLL_SECONDS=30

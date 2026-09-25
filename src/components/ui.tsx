@@ -9,7 +9,20 @@ export function CopyButton({ text, label = 'Copy format' }: { text: string; labe
   async function copy() { try { await navigator.clipboard.writeText(text); setState('copied'); setTimeout(() => setState('idle'), 2000); } catch { setState('failed'); } }
   return <button className="copy-button" onClick={copy} aria-label={label}><span aria-live="polite">{state === 'copied' ? 'Copied' : state === 'failed' ? 'Select text to copy' : label}</span>{state === 'copied' ? <Check size={15} /> : <Copy size={15} />}</button>;
 }
-export function PostComposer() { return <div className="post-composer"><div className="composer-top"><span className="eyebrow">YOUR NEXT IDEA STARTS WITH A POST</span><CopyButton text={postText} /></div><div className="post-code"><span>@{botHandle || 'YOUR_BOT'}</span> <strong>$TICKER</strong> <span>#AAPL</span><span className="typing-cursor" /></div><div className="composer-bottom"><span>A ticker. A stock. Your own little corner of the market.</span><PostButton className="text-link" /></div>{!botHandle && <small className="config-note">Example format · the launch link appears when the bot is configured.</small>}</div>; }
+export function ContractBar() {
+  const ca = process.env.NEXT_PUBLIC_TOKEN_CA || '';
+  if (!ca) return null;
+  const short = `${ca.slice(0, 6)}…${ca.slice(-6)}`;
+  return <div className="ca-bar">
+    <span className="ca-label"><span className="dot" /> OFFICIAL CA</span>
+    <code className="ca-full" title={ca}>{ca}</code>
+    <code className="ca-short" title={ca}>{short}</code>
+    <CopyButton text={ca} label="Copy" />
+    <a className="text-link" href={`https://pump.fun/coin/${ca}`} target="_blank" rel="noopener noreferrer">pump.fun<ArrowUpRight size={14} /></a>
+  </div>;
+}
+
+export function PostComposer() { return <div className="post-composer"><div className="composer-top"><span className="eyebrow">YOUR NEXT IDEA STARTS WITH A POST</span><CopyButton text={postText} /></div><div className="post-code"><span>@{botHandle || 'YOUR_BOT'}</span> <strong>$TICKER</strong> <span>#AAPL</span><span className="typing-cursor" /></div><div className="composer-bottom"><span>A ticker. A stock. Your own little corner of the market.</span><PostButton className="text-link" /></div></div>; }
 export function CoinImage({ url, ticker, large = false }: { url: string | null; ticker: string; large?: boolean }) {
   const src = imageSource(url); const [failed, setFailed] = useState(false); const [loaded, setLoaded] = useState(false);
   return <div className={`coin-image ${large ? 'large' : ''}`}>{src && !failed ? <img src={src} alt={`${ticker} coin artwork`} loading={large ? 'eager' : 'lazy'} referrerPolicy="no-referrer" onError={() => setFailed(true)} onLoad={() => setLoaded(true)} style={{ opacity: loaded ? 1 : 0 }} /> : <span aria-label={`${ticker} artwork placeholder`}>{ticker.slice(0, 2)}</span>}</div>;
